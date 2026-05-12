@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="${FACETOOLS_ROOT:-/Users/bigmac/AI/FaceTools}"
+export FACETOOLS_EXTERNAL_ROOT="${FACETOOLS_EXTERNAL_ROOT:-/Volumes/wc2tb/AI/FaceTools}"
+export HF_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface"
+export HF_HUB_CACHE="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface/hub"
+export HF_XET_CACHE="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface/xet"
+export XDG_CACHE_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/xdg"
+export TORCH_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/torch"
 PORT="7865"
 while [[ $# -gt 0 ]]; do
   case "$1" in

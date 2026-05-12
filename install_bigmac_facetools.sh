@@ -107,11 +107,12 @@ remote_flags=()
 [[ "$SKIP_MODEL_DOWNLOAD" == "1" ]] && remote_flags+=("--skip-model-download")
 remote_flags+=("--facefusion-ref" "$FACEFUSION_REF")
 
+FACETOOLS_EXTERNAL_ROOT="${FACETOOLS_EXTERNAL_ROOT:-/Volumes/wc2tb/AI/FaceTools}"
 log "Expanding and running remote installer."
 if [[ "$DRY_RUN" == "1" ]]; then
-  printf '[dry-run] ssh %q %q\n' "$SSH_TARGET" "cd '$REMOTE_ROOT/_incoming' && tar -xzf facetools_bundle.tar.gz && bash remote/install_remote.sh ${remote_flags[*]}"
+  printf '[dry-run] ssh %q %q\n' "$SSH_TARGET" "export FACETOOLS_EXTERNAL_ROOT='$FACETOOLS_EXTERNAL_ROOT'; cd '$REMOTE_ROOT/_incoming' && tar -xzf facetools_bundle.tar.gz && bash remote/install_remote.sh ${remote_flags[*]}"
 else
-  ssh "$SSH_TARGET" "cd '$REMOTE_ROOT/_incoming' && rm -rf remote && tar -xzf facetools_bundle.tar.gz && bash remote/install_remote.sh ${remote_flags[*]}"
+  ssh "$SSH_TARGET" "export FACETOOLS_EXTERNAL_ROOT='$FACETOOLS_EXTERNAL_ROOT'; cd '$REMOTE_ROOT/_incoming' && rm -rf remote && tar -xzf facetools_bundle.tar.gz && bash remote/install_remote.sh ${remote_flags[*]}"
 fi
 
 log "Done. Launch with: ./launch_bigmac_facetools_gui.sh"

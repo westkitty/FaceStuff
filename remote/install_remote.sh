@@ -2,6 +2,21 @@
 set -euo pipefail
 
 ROOT="${FACETOOLS_ROOT:-/Users/bigmac/AI/FaceTools}"
+export FACETOOLS_EXTERNAL_ROOT="${FACETOOLS_EXTERNAL_ROOT:-/Volumes/wc2tb/AI/FaceTools}"
+export HF_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface"
+export HF_HUB_CACHE="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface/hub"
+export HF_XET_CACHE="$FACETOOLS_EXTERNAL_ROOT/cache/huggingface/xet"
+export XDG_CACHE_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/xdg"
+export TORCH_HOME="$FACETOOLS_EXTERNAL_ROOT/cache/torch"
+EXTERNAL_ROOT="${FACETOOLS_EXTERNAL_ROOT:-/Volumes/wc2tb/AI/FaceTools}"
+
+# Setup Cache/Home redirection
+export HF_HOME="$EXTERNAL_ROOT/cache/huggingface"
+export HF_HUB_CACHE="$EXTERNAL_ROOT/cache/huggingface/hub"
+export HF_XET_CACHE="$EXTERNAL_ROOT/cache/huggingface/xet"
+export XDG_CACHE_HOME="$EXTERNAL_ROOT/cache/xdg"
+export TORCH_HOME="$EXTERNAL_ROOT/cache/torch"
+
 APPS_DIR="$ROOT/apps"
 FACEFUSION_DIR="$APPS_DIR/facefusion"
 LOG_DIR="$ROOT/logs"
@@ -13,6 +28,7 @@ DRY_RUN=0
 REPAIR=0
 CLEAN_REINSTALL=0
 SKIP_MODEL_DOWNLOAD=0
+FORCE_MODEL_DOWNLOAD=0
 FACEFUSION_REF="latest"
 
 log() { printf '[remote install] %s\n' "$*"; }
@@ -31,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     --repair) REPAIR=1 ;;
     --clean-reinstall) CLEAN_REINSTALL=1 ;;
     --skip-model-download) SKIP_MODEL_DOWNLOAD=1 ;;
+    --force-model-download) FORCE_MODEL_DOWNLOAD=1 ;;
     --facefusion-ref) shift; FACEFUSION_REF="${1:-}"; [[ -n "$FACEFUSION_REF" ]] || fail "--facefusion-ref requires a value" ;;
     *) fail "Unknown option: $1" ;;
   esac
@@ -47,9 +64,48 @@ verify_remote_identity() {
   [[ "$arch" == "arm64" ]] || fail "Expected Apple Silicon arm64, got $arch."
 }
 
+check_disk_space() {
+  log "Checking disk space."
+  if [[ ! -d "$EXTERNAL_ROOT" ]]; then
+    fail "External volume $EXTERNAL_ROOT not found. Ensure /Volumes/wc2tb is mounted."
+  fi
+  if [[ ! -w "$EXTERNAL_ROOT" ]]; then
+    fail "External volume $EXTERNAL_ROOT is not writable."
+  fi
+
+  local internal_free external_free
+  internal_free=$(df -m "$ROOT" | tail -n 1 | awk '{print $4}')
+  external_free=$(df -m "$EXTERNAL_ROOT" | tail -n 1 | awk '{print $4}')
+
+  log "Internal free space: ${internal_free} MiB"
+  log "External free space: ${external_free} MiB"
+
+  if [[ $external_free -lt 51200 ]]; then
+    log "WARNING: External free space is below 50 GiB."
+  fi
+  if [[ $internal_free -lt 2048 ]]; then
+    log "WARNING: Internal free space is below 2 GiB."
+    if [[ "$FORCE_MODEL_DOWNLOAD" == "0" && "$SKIP_MODEL_DOWNLOAD" == "0" ]]; then
+      log "Automatically skipping model pre-download due to low internal space. Use --force-model-download to override."
+      SKIP_MODEL_DOWNLOAD=1
+    fi
+  fi
+}
+
 ensure_dirs() {
   run mkdir -p "$ROOT" "$APPS_DIR" "$LOG_DIR/jobs" "$BIN_DIR" "$CONFIG_DIR" "$RUN_DIR" \
-    "$DATA_DIR/uploads" "$DATA_DIR/outputs" "$DATA_DIR/jobs" "$DATA_DIR/tmp" "$ROOT/models" "$ROOT/third_party"
+    "$DATA_DIR/tmp" "$ROOT/models" "$ROOT/third_party"
+  
+  # External heavy data dirs
+  run mkdir -p "$EXTERNAL_ROOT/cache/huggingface/hub" \
+    "$EXTERNAL_ROOT/cache/huggingface/xet" \
+    "$EXTERNAL_ROOT/cache/xdg" \
+    "$EXTERNAL_ROOT/cache/torch" \
+    "$EXTERNAL_ROOT/temp" \
+    "$EXTERNAL_ROOT/jobs" \
+    "$EXTERNAL_ROOT/models" \
+    "$EXTERNAL_ROOT/uploads" \
+    "$EXTERNAL_ROOT/outputs"
 }
 
 path_setup() {
@@ -263,6 +319,7 @@ smoke_test() {
 
 main() {
   verify_remote_identity
+  check_disk_space
   ensure_dirs
   ensure_homebrew
   ensure_brew_deps

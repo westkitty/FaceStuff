@@ -17,13 +17,19 @@ from pydantic import BaseModel
 
 # Constants
 BASE_DIR_STR = "/Users/bigmac/AI/FaceTools"
+EXTERNAL_ROOT_STR = os.getenv("FACETOOLS_EXTERNAL_ROOT", "/Volumes/wc2tb/AI/FaceTools")
 BASE_DIR = Path(BASE_DIR_STR)
+EXTERNAL_ROOT = Path(EXTERNAL_ROOT_STR)
+
 DATA_DIR = BASE_DIR / "data"
-UPLOADS_DIR = DATA_DIR / "uploads"
-OUTPUTS_DIR = DATA_DIR / "outputs"
-JOBS_DIR = DATA_DIR / "jobs"
 LOGS_DIR = BASE_DIR / "logs" / "jobs"
 STATIC_DIR = BASE_DIR / "static"
+
+# Redirection for heavy data
+UPLOADS_DIR = EXTERNAL_ROOT / "uploads"
+OUTPUTS_DIR = EXTERNAL_ROOT / "outputs"
+JOBS_DIR = EXTERNAL_ROOT / "jobs"
+TEMP_DIR = EXTERNAL_ROOT / "temp"
 
 for d in [UPLOADS_DIR, OUTPUTS_DIR, JOBS_DIR, LOGS_DIR, STATIC_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -118,6 +124,11 @@ def build_facefusion_command(options: Dict[str, Any], source_paths: List[str], t
             extra_list = []
         cmd.extend([x for x in extra_list if x.startswith("--")])
 
+    if "--temp-path" in help_text:
+        cmd.extend(["--temp-path", str(TEMP_DIR)])
+    if "--jobs-path" in help_text:
+        cmd.extend(["--jobs-path", str(JOBS_DIR)])
+
     return cmd
 
 def is_safe_path(base: Path, path: Path) -> bool:
@@ -160,8 +171,10 @@ async def status():
     return {
         "user": "bigmac",
         "root": BASE_DIR_STR,
+        "external_root": EXTERNAL_ROOT_STR,
         "active_jobs": len(active_jobs),
-        "disk_free": shutil.disk_usage(BASE_DIR_STR).free // (1024*1024)
+        "disk_free_mib": shutil.disk_usage(BASE_DIR_STR).free // (1024*1024),
+        "external_disk_free_mib": shutil.disk_usage(EXTERNAL_ROOT_STR).free // (1024*1024) if os.path.exists(EXTERNAL_ROOT_STR) else None
     }
 
 @app.post("/api/diagnostics")
