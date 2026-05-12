@@ -91,6 +91,11 @@ ensure_brew_deps() {
   if brew --prefix ffmpeg@7 >/dev/null 2>&1; then
     export PATH="$(brew --prefix ffmpeg@7)/bin:$PATH"
   fi
+  # Accept Conda ToS for Anaconda channels if miniconda was installed
+  if [[ -x "/opt/homebrew/bin/conda" ]]; then
+    "/opt/homebrew/bin/conda" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true
+    "/opt/homebrew/bin/conda" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true
+  fi
 }
 
 find_conda() {
@@ -160,10 +165,13 @@ install_facefusion() {
   fi
   log "Checking out FaceFusion ref: $ref"
   run git -C "$FACEFUSION_DIR" checkout "$ref"
-  run git -C "$FACEFUSION_DIR" pull --ff-only || true
+  # Only pull if we are on a branch
+  if git -C "$FACEFUSION_DIR" symbolic-ref -q HEAD >/dev/null; then
+    run git -C "$FACEFUSION_DIR" pull --ff-only || true
+  fi
 
   log "Installing FaceFusion using official install.py flow with ONNX Runtime default."
-  run conda_run "$conda_bin" -n facefusion python "$FACEFUSION_DIR/install.py" --onnxruntime default
+  ( cd "$FACEFUSION_DIR" && run conda_run "$conda_bin" -n facefusion python install.py --onnxruntime default )
 
   local version_file="$CONFIG_DIR/facefusion_version.txt"
   if [[ "$DRY_RUN" == "0" ]]; then
@@ -171,7 +179,7 @@ install_facefusion() {
       echo "ref=$ref"
       echo "git_describe=$(git -C "$FACEFUSION_DIR" describe --tags --always --dirty 2>/dev/null || true)"
       echo "git_commit=$(git -C "$FACEFUSION_DIR" rev-parse HEAD 2>/dev/null || true)"
-      conda_run "$conda_bin" -n facefusion python "$FACEFUSION_DIR/facefusion.py" --version 2>&1 | sed 's/^/facefusion_version_output=/' || true
+      ( cd "$FACEFUSION_DIR" && conda_run "$conda_bin" -n facefusion python facefusion.py --version 2>&1 | sed 's/^/facefusion_version_output=/' || true )
       date -u '+installed_utc=%Y-%m-%dT%H:%M:%SZ'
     } > "$version_file"
   fi
@@ -235,7 +243,7 @@ predownload_models() {
   if grep -q -- '--download-providers' <<<"$help_text"; then
     args+=(--download-providers huggingface github)
   fi
-  conda_run "$conda_bin" -n facefusion python "${args[@]}" || log "Model pre-download failed. The GUI can still trigger downloads during first run. See logs."
+  ( cd "$FACEFUSION_DIR" && conda_run "$conda_bin" -n facefusion python "${args[@]}" ) || log "Model pre-download failed. The GUI can still trigger downloads during first run. See logs."
 }
 
 smoke_test() {
@@ -248,8 +256,8 @@ smoke_test() {
   conda_run "$conda_bin" -n facefusion python --version
   conda_run "$conda_bin" -n facetools-gui python --version
   ffmpeg -version | head -n 1
-  conda_run "$conda_bin" -n facefusion python "$FACEFUSION_DIR/facefusion.py" --version || true
-  conda_run "$conda_bin" -n facefusion python "$FACEFUSION_DIR/facefusion.py" headless-run --help >/dev/null || \
+  ( cd "$FACEFUSION_DIR" && conda_run "$conda_bin" -n facefusion python facefusion.py --version || true )
+  ( cd "$FACEFUSION_DIR" && conda_run "$conda_bin" -n facefusion python facefusion.py headless-run --help >/dev/null ) || \
     log "headless-run help failed; GUI diagnostics will expose details."
 }
 
