@@ -44,6 +44,15 @@ def get_facefusion_help() -> str:
             _cached_help = ""
     return _cached_help
 
+def normalize_processors(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [p.strip() for p in value.split(",") if p.strip()]
+    if isinstance(value, (list, tuple)):
+        return [str(p).strip() for p in value if str(p).strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
 def build_facefusion_command(options: Dict[str, Any], source_paths: List[str], target_path: str, output_path: str) -> List[str]:
     help_text = get_facefusion_help()
     wrapper = str(BASE_DIR / "bin" / "run_facefusion_cli.sh")
@@ -69,25 +78,23 @@ def build_facefusion_command(options: Dict[str, Any], source_paths: List[str], t
     else:
         cmd.extend(["--output", output_path])
 
-    processors = options.get("processors", "")
-    if processors:
-        proc_list = [p.strip() for p in processors.split(",") if p.strip()]
-        if proc_list:
-            cmd.append("--processors")
-            cmd.extend(proc_list)
+    proc_list = normalize_processors(options.get("processors"))
+    if proc_list:
+        cmd.append("--processors")
+        cmd.extend(proc_list)
+        
+        if "face_enhancer" in proc_list:
+            enhancer_model = options.get("face_enhancer_model")
+            if enhancer_model and "--face-enhancer-model" in help_text:
+                cmd.extend(["--face-enhancer-model", enhancer_model])
             
-            if "face_enhancer" in proc_list:
-                enhancer_model = options.get("face_enhancer_model")
-                if enhancer_model and "--face-enhancer-model" in help_text:
-                    cmd.extend(["--face-enhancer-model", enhancer_model])
-                
-                enhancer_blend = options.get("face_enhancer_blend")
-                if enhancer_blend and "--face-enhancer-blend" in help_text:
-                    cmd.extend(["--face-enhancer-blend", str(enhancer_blend)])
+            enhancer_blend = options.get("face_enhancer_blend")
+            if enhancer_blend and "--face-enhancer-blend" in help_text:
+                cmd.extend(["--face-enhancer-blend", str(enhancer_blend)])
 
-                enhancer_weight = options.get("face_enhancer_weight")
-                if enhancer_weight and "--face-enhancer-weight" in help_text:
-                    cmd.extend(["--face-enhancer-weight", str(enhancer_weight)])
+            enhancer_weight = options.get("face_enhancer_weight")
+            if enhancer_weight and "--face-enhancer-weight" in help_text:
+                cmd.extend(["--face-enhancer-weight", str(enhancer_weight)])
 
     out_img_qual = options.get("output_image_quality")
     if out_img_qual and "--output-image-quality" in help_text:
@@ -101,9 +108,15 @@ def build_facefusion_command(options: Dict[str, Any], source_paths: List[str], t
     if trim_end and "--trim-frame-end" in help_text:
         cmd.extend(["--trim-frame-end", str(trim_end)])
 
-    extra_args = options.get("extra_args")
-    if extra_args:
-        cmd.extend(extra_args.split())
+    extra_args_val = options.get("extra_args")
+    if extra_args_val:
+        if isinstance(extra_args_val, str):
+            extra_list = extra_args_val.split()
+        elif isinstance(extra_args_val, (list, tuple)):
+            extra_list = [str(x) for x in extra_args_val]
+        else:
+            extra_list = []
+        cmd.extend([x for x in extra_list if x.startswith("--")])
 
     return cmd
 
