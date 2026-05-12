@@ -67,12 +67,12 @@ verify_remote_identity() {
 check_disk_space() {
   log "Checking disk space."
   local check_path="$EXTERNAL_ROOT"
-  if [[ ! -d "$check_path" ]]; then
-    check_path="$(dirname "$EXTERNAL_ROOT")"
-  fi
+  while [[ ! -d "$check_path" && "$check_path" != "/" ]]; do
+    check_path="$(dirname "$check_path")"
+  done
 
-  if [[ ! -d "$check_path" ]]; then
-    fail "External storage path $check_path not found. Ensure the external drive is mounted."
+  if [[ ! -d "$check_path" || "$check_path" == "/" ]]; then
+    fail "External storage path parent not found. Ensure the external drive is mounted."
   fi
   if [[ ! -w "$check_path" ]]; then
     fail "External storage path $check_path is not writable."
