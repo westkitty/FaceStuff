@@ -66,16 +66,21 @@ verify_remote_identity() {
 
 check_disk_space() {
   log "Checking disk space."
-  if [[ ! -d "$EXTERNAL_ROOT" ]]; then
-    fail "External volume $EXTERNAL_ROOT not found. Ensure /Volumes/wc2tb is mounted."
+  local check_path="$EXTERNAL_ROOT"
+  if [[ ! -d "$check_path" ]]; then
+    check_path="$(dirname "$EXTERNAL_ROOT")"
   fi
-  if [[ ! -w "$EXTERNAL_ROOT" ]]; then
-    fail "External volume $EXTERNAL_ROOT is not writable."
+
+  if [[ ! -d "$check_path" ]]; then
+    fail "External storage path $check_path not found. Ensure the external drive is mounted."
+  fi
+  if [[ ! -w "$check_path" ]]; then
+    fail "External storage path $check_path is not writable."
   fi
 
   local internal_free external_free
   internal_free=$(df -m "$ROOT" | tail -n 1 | awk '{print $4}')
-  external_free=$(df -m "$EXTERNAL_ROOT" | tail -n 1 | awk '{print $4}')
+  external_free=$(df -m "$check_path" | tail -n 1 | awk '{print $4}')
 
   log "Internal free space: ${internal_free} MiB"
   log "External free space: ${external_free} MiB"
