@@ -1,52 +1,97 @@
-# FaceStuff
+# Big Mac FaceTools
 
-This repository contains the Big Mac FaceTools project bootstrap for installing and running a local FaceFusion GUI on Big Mac through `ssh westcat`.
+A local-only FaceFusion installer and web GUI for Big Mac, controlled from a MacBook through `ssh westcat`.
 
-The actual project files are stored here as text-safe base64 bundle parts because Andrew could not download the ZIP artifact directly from ChatGPT.
-
-## Hydrate the project files
-
-From the MacBook project root:
+The route is deliberately guarded. Every MacBook-side script verifies:
 
 ```bash
-cd "/Users/andrew/Library/Mobile Documents/com~apple~CloudDocs/Projects/FaceStuff"
-bash hydrate_facetools_from_bundle_parts.sh --yes
-```
-
-That script reconstructs the original bundle from `bundle_parts/*.b64`, unpacks it into this project root, and marks shell scripts executable.
-
-## After hydration
-
-Run the normal audit/install flow:
-
-```bash
-cd "/Users/andrew/Library/Mobile Documents/com~apple~CloudDocs/Projects/FaceStuff"
-find . -maxdepth 3 -type f | sort
-bash -n install_bigmac_facetools.sh
-find remote -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-python3 -m py_compile remote/gui/app.py
 ssh westcat 'whoami && hostname && pwd && sw_vers'
-./install_bigmac_facetools.sh --dry-run
 ```
 
-Proceed to the real install only if the SSH route check returns first two lines exactly:
+The first two lines must be exactly:
 
 ```text
 bigmac
 bigmac
 ```
 
-## Forbidden shortcuts
+If `whoami` returns `andrew`, the scripts stop. That route is wrong for this project.
 
-Do not use or suggest:
+## Install
 
-- `ssh-copy-id westcat`
-- creating a `westcat` user
-- changing `Host westcat` back to `User andrew`
-- disabling host key checking
-- passing sudo passwords inline
-- Screen Sharing
-- recreating `com.apple.access_ssh`
-- changing FileVault/SecureToken
+```bash
+cd "/Users/andrew/Library/Mobile Documents/com~apple~CloudDocs/Projects/FaceStuff"
+chmod +x *.sh
+./install_bigmac_facetools.sh
+```
 
-Unless Andrew explicitly asks. Dexter growls at sloppy SSH. Correctly.
+Dry run:
+
+```bash
+./install_bigmac_facetools.sh --dry-run
+```
+
+Repair/update:
+
+```bash
+./update_bigmac_facetools.sh
+```
+
+Clean reinstall, keeping data:
+
+```bash
+./install_bigmac_facetools.sh --clean-reinstall
+```
+
+Uninstall, keeping data:
+
+```bash
+./install_bigmac_facetools.sh --uninstall
+```
+
+## Launch GUI
+
+```bash
+./launch_bigmac_facetools_gui.sh
+```
+
+Open:
+
+```text
+http://127.0.0.1:7865
+```
+
+## Stop GUI
+
+```bash
+./stop_bigmac_facetools_gui.sh
+```
+
+## Check diagnostics
+
+```bash
+./check_bigmac_facetools.sh
+```
+
+## Storage
+
+Remote root:
+
+```text
+/Users/bigmac/AI/FaceTools
+```
+
+Managed data:
+
+```text
+/Users/bigmac/AI/FaceTools/data/uploads
+/Users/bigmac/AI/FaceTools/data/outputs
+/Users/bigmac/AI/FaceTools/data/jobs
+/Users/bigmac/AI/FaceTools/logs
+```
+
+## Security
+
+The GUI binds to `127.0.0.1` on Big Mac. The MacBook reaches it through an SSH tunnel. No cloud upload is performed by this wrapper. FaceFusion may download models from configured model providers during installation or first run.
+
+Use only media you own, have rights to use, or have consent to process. Do not use this for deception, impersonation, harassment, or unlawful purposes.
